@@ -21,9 +21,10 @@ jobs:
           TG_${{ secrets.TELEGRAM_CHAT_ID }}: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TG_${{ secrets.TELEGRAM }}EN" ] || [ -z "$TG_${{ secrets.TELEGRAM_CHAT_ID }}" ]; then echo "::error::Telegram secrets not set"; exit 1; fi
-          curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" \
-            -d chat_id="$TG_${{ secrets.TELEGRAM_CHAT_ID }}" \
-            --data-urlencode text="3HL uptime: test - Telegram delivery OK"
+          if ! printf '%s' "$TG_${{ secrets.TELEGRAM }}EN" | grep -qE '^[0-9]{6,}:[A-Za-z0-9_-]{30,}$'; then echo "::error::TELEGRAM secret is not shaped like a bot token (expect 123456789:AA...)"; exit 1; fi
+          resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" -d chat_id="$TG_${{ secrets.TELEGRAM_CHAT_ID }}" --data-urlencode text="3HL uptime: test - Telegram delivery OK")
+          echo "telegram_response: $resp"
+          echo "$resp" | grep -q '"ok":true' || { echo "::error::Telegram rejected the message (see telegram_response)"; exit 1; }
 
       - name: Ping 3HL dashboard
         if: ${{ github.event.inputs.test != 'true' }}
@@ -45,9 +46,10 @@ jobs:
           TG_${{ secrets.TELEGRAM_CHAT_ID }}: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TG_${{ secrets.TELEGRAM }}EN" ] && [ -n "$TG_${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
-            curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" \
+            resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" \
               -d chat_id="$TG_${{ secrets.TELEGRAM_CHAT_ID }}" \
-              --data-urlencode text="3HL DOWN: dashboard unreachable (HTTP ${{ steps.ping.outputs.code }}) - $(date -u +'%Y-%m-%d %H:%M UTC')"
+              --data-urlencode text="3HL DOWN: dashboard unreachable (HTTP ${{ steps.ping.outputs.code }}) - $(date -u +'%Y-%m-%d %H:%M UTC')")
+            echo "telegram_response: $resp"
           else
             echo "no telegram secrets set - skipping"
           fi
