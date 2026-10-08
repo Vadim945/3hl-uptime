@@ -4,28 +4,50 @@ on:
   schedule:
     - cron: "*/5 * * * *"   # каждые 5 минут (UTC)
   workflow_dispatch:
+    inputs:
+      test:
+        description: "Отправить тестовое уведомление в Telegram"
+        type: boolean
+        default: false
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Test Telegram alert
+        if: ${{ github.event.inputs.test == 'true' }}
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then echo "::error::Telegram secrets не заданы"; exit 1; fi
+          curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
+            -d chat_id="$TG_CHAT" \
+            --data-urlencode text="✅ 3HL uptime: тест — канал доставки в Telegram работает"
+
       - name: Ping 3HL dashboard
+        if: ${{ github.event.inputs.test != 'true' }}
+        id: ping
         run: |
           code=$(curl -s -L --max-time 20 -o /dev/null -w '%{http_code}' \
             "https://vadim3hl.serveousercontent.com/?serveo-skip-browser-warning=true")
           echo "HTTP $code"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" != "200" ]; then
             echo "::error::3HL dashboard DOWN (HTTP $code)"
             exit 1
           fi
 
-      - name: Telegram alert (only if secrets are set)
-        if: failure()
+      - name: Telegram alert on failure
+        if: ${{ failure() && github.event.inputs.test != 'true' }}
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ] && [ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-              -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
-              -d text="🔴 3HL: дашборд недоступен снаружи"
+          if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+            curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" \
+              -d chat_id="$TG_CHAT" \
+              --data-urlencode text="🔴 3HL: дашборд недоступен снаружи (HTTP ${{ steps.ping.outputs.code }}) — $(date -u +'%Y-%m-%d %H:%M UTC')"
           else
             echo "no telegram secrets set - skipping"
           fi
