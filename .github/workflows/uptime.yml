@@ -17,7 +17,7 @@ jobs:
       - name: Test Telegram alert
         if: ${{ github.event.inputs.test == 'true' }}
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_TOKEN: *** secrets.TELEGRAM }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then echo "::error::Telegram secrets не заданы"; exit 1; fi
@@ -41,7 +41,7 @@ jobs:
       - name: Telegram alert on failure
         if: ${{ failure() && github.event.inputs.test != 'true' }}
         env:
-          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_TOKEN: *** secrets.TELEGRAM }}
           TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
