@@ -17,15 +17,15 @@ jobs:
       - name: Test Telegram alert
         if: ${{ github.event.inputs.test == 'true' }}
         env:
-          TG_${{ secrets.TELEGRAM }}EN: ***
-          TG_${{ secrets.TELEGRAM_CHAT_ID }}: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TG_TOKEN: ${{ secrets.TELEGRAM }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -z "$TG_${{ secrets.TELEGRAM }}EN" ] || [ -z "$TG_${{ secrets.TELEGRAM_CHAT_ID }}" ]; then echo "::error::Telegram secrets not set"; exit 1; fi
-          echo "token_len=${#TG_${{ secrets.TELEGRAM }}EN}"
-          echo -n "token_shape="; printf '%s' "$TG_${{ secrets.TELEGRAM }}EN" | sed -E 's/[0-9]/#/g; s/[A-Za-z]/x/g' | head -c 60; echo
-          if ! printf '%s' "$TG_${{ secrets.TELEGRAM }}EN" | grep -qE '^[0-9]{6,}:[A-Za-z0-9_-]{30,}$'; then echo "::error::TELEGRAM secret is not shaped like a bot token (expect 123456789:AA...)"; exit 1; fi
-          me=$(curl -s "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/getMe"); echo "getMe: $me"
-          resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" -d chat_id="$TG_${{ secrets.TELEGRAM_CHAT_ID }}" --data-urlencode text="3HL uptime: test - Telegram delivery OK")
+          if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT" ]; then echo "::error::Telegram secrets not set"; exit 1; fi
+          echo "token_len=${#TG_TOKEN}"
+          echo -n "token_shape="; printf '%s' "$TG_TOKEN" | sed -E 's/[0-9]/#/g; s/[A-Za-z]/x/g' | head -c 60; echo
+          if ! printf '%s' "$TG_TOKEN" | grep -qE '^[0-9]{6,}:[A-Za-z0-9_-]{30,}$'; then echo "::error::TELEGRAM secret is not shaped like a bot token (expect 123456789:AA...)"; exit 1; fi
+          me=$(curl -s "https://api.telegram.org/bot$TG_TOKEN/getMe"); echo "getMe: $me"
+          resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -d chat_id="$TG_CHAT" --data-urlencode text="3HL uptime: test - Telegram delivery OK")
           echo "telegram_response: $resp"
           echo "$resp" | grep -q '"ok":true' || { echo "::error::Telegram rejected the message"; exit 1; }
 
@@ -42,11 +42,11 @@ jobs:
       - name: Telegram alert on failure
         if: ${{ failure() && github.event.inputs.test != 'true' }}
         env:
-          TG_${{ secrets.TELEGRAM }}EN: ***
-          TG_${{ secrets.TELEGRAM_CHAT_ID }}: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TG_TOKEN: ${{ secrets.TELEGRAM }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "$TG_${{ secrets.TELEGRAM }}EN" ] && [ -n "$TG_${{ secrets.TELEGRAM_CHAT_ID }}" ]; then
-            resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_${{ secrets.TELEGRAM }}EN/sendMessage" -d chat_id="$TG_${{ secrets.TELEGRAM_CHAT_ID }}" --data-urlencode text="3HL DOWN: dashboard unreachable (HTTP ${{ steps.ping.outputs.code }}) - $(date -u +'%Y-%m-%d %H:%M UTC')")
+          if [ -n "$TG_TOKEN" ] && [ -n "$TG_CHAT" ]; then
+            resp=$(curl -s -X POST "https://api.telegram.org/bot$TG_TOKEN/sendMessage" -d chat_id="$TG_CHAT" --data-urlencode text="3HL DOWN: dashboard unreachable (HTTP ${{ steps.ping.outputs.code }}) - $(date -u +'%Y-%m-%d %H:%M UTC')")
             echo "telegram_response: $resp"
           else
             echo "no telegram secrets set - skipping"
